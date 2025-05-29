@@ -2,7 +2,7 @@ import Pan123SDK from "../dist/pan123-sdk.esm";
 
 const sdk = new Pan123SDK({
   clientId: "xxxx",
-  clientSecret: "xxxx",
+  clientSecret: "xxxx11",
 });
 
 async function init() {
