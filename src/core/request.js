@@ -75,6 +75,7 @@ export default class Request {
       return response.data;
     } catch (error) {
       console.error("error", error.message);
+      throw error;
     }
   }
 }

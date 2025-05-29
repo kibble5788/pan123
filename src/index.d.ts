@@ -39,6 +39,8 @@ export default class Pan123SDK {
 
   getFileList(params?: FileListParams): Promise<any>;
 
+  getFileDetail(fileID: string): Promise<any>;
+
   getFileDownloadUrl(params: { fileId: string }): Promise<any>;
 
   isTokenValid(): boolean;

@@ -178,10 +178,14 @@ export default class Pan123SDK {
       };
     }
   }
-
+  /**
+   * 解压
+   * @param {string} fileId 文件ID
+   * @param {string} folderId 目标文件夹ID
+   * @returns {Promise<Object>} 解压结果
+   */
   async zipFile({ fileId, folderId } = data) {
     let tk = new Date().valueOf();
-
     //创建解压任务
     let res = await this.request.request({
       baseURL: API_BASE_URL_WEB,
@@ -259,7 +263,15 @@ export default class Pan123SDK {
     };
     await getStatus2();
   }
-
+  /**
+   * 获取文件列表（推荐）
+   * @param {Object} params 参数
+   * @param {number} params.parentFileId 父文件夹ID
+   * @param {number} params.limit 每页数量
+   * @param {string} params.searchData 搜索内容
+   * @param {number} params.searchMode 搜索模式
+   * @param {number} params.lastFileId 最后文件ID
+   */
   async getFileList({
     parentFileId = 0,
     limit = 100,
@@ -284,7 +296,34 @@ export default class Pan123SDK {
       message: "",
     };
   }
-
+  /**
+   * 获取单个文件详情
+   */
+  async getFileDetail(fileID) {
+    try {
+      let res = await this.request.request({
+        url: API_ENDPOINTS.FILE_DETAIL,
+        method: "GET",
+        params: { fileID },
+      });
+      return {
+        success: true,
+        data: res.data,
+        message: "",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: error.message,
+      };
+    }
+  }
+  /**
+   * 获取文件下载链接
+   * @param {string} fileId 文件ID
+   * @returns {Promise<Object>} 下载链接
+   */
   async getFileDownloadUrl({ fileId }) {
     try {
       let res = await this.request.request({

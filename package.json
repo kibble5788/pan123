@@ -1,6 +1,6 @@
 {
   "name": "@ked3/pan123-sdk",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "description": "123网盘SDK，支持文件上传、下载、管理等功能",
   "main": "dist/pan123-sdk.cjs",
   "module": "dist/pan123-sdk.esm.js",
@@ -41,6 +41,7 @@
   "devDependencies": {
     "@babel/core": "^7.26.10",
     "@babel/preset-env": "^7.26.9",
+    "@ked3/pan123-sdk": "^1.0.5",
     "babel-loader": "^10.0.0",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "webpack": "^5.99.5",
@@ -50,6 +51,7 @@
   "dependencies": {
     "axios": "^1.8.4",
     "crypto-js": "^4.2.0",
+    "dotenv": "^16.4.5",
     "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2"
   }
