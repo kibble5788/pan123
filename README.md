@@ -97,7 +97,7 @@ npm publish --access public
 
 ## 🔗 相关链接
 
-- [123 网盘官方文档](https://www.123pan.com/developers)
+- [123 网盘官方文档](https://www.123pan.com/developer)
 
 ## 📄 许可证
 
