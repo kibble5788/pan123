@@ -52,7 +52,7 @@ export default class Pan123SDK {
       this.request.accessToken = response.accessToken;
       return response.accessToken;
     } catch (error) {
-      throw new Error(`获取access token失败: ${error.message}`);
+      throw new Error(`获取access token失败，请检查clientId 和 clientSecret是否正确`);
     }
   }
 
