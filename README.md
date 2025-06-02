@@ -70,6 +70,23 @@ const result = await sdk.zipFile({
   folderId: "987654321", // 解压目标文件夹ID
 });
 ```
+## Commond JS 使用方式
+```
+const Pan123SDK = require("@ked3/pan123-sdk");
+const sdk = new Pan123SDK({
+  clientId: "xxx",
+  clientSecret: "xxx",
+});
+async function main(){
+  await sdk.initToken();
+  const uploadResult = await sdk.uploadFile(filePath, {
+    parentFileID: 14439872, // 父目录ID，0表示根目录
+    containDir: false, // 是否包含目录结构
+    duplicate: 2, // 重名处理策略：1-重命名，2-覆盖，3-跳过
+  });
+}
+main()
+```
 
 ## 本地开发
 
