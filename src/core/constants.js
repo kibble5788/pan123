@@ -41,6 +41,12 @@ export const API_ENDPOINTS = {
   FILE_RENAME: "/api/v1/file/rename",
   /** 删除文件至回收站 */
   FILE_DELETE: "/api/v1/file/trash",
+  /** 获取直链链接 */
+  FILE_DIRECT_LINK: "/api/v1/direct-link/url",
+  /** 启用直链 */
+  ENABLE_DIRECT_LINK: "/api/v1/direct-link/enable",
+  /** 禁用直链 */
+  DISABLE_DIRECT_LINK: "/api/v1/direct-link/disable",
 };
 
 export const COMMON_HEADERS = {

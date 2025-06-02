@@ -39,6 +39,9 @@ async function init() {
   let fileDetail = await sdk.getFileDetail(res.data.fileID);
   console.log("文件id:", res.data.fileID);
   console.log("文件详情:", fileDetail);
+
+  let directLink = await sdk.enableDirectLink(res.data.fileID);
+  console.log("启用直链:", directLink);
 }
 
 init();

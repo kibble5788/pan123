@@ -64,6 +64,14 @@ export interface ZipFileParams {
 }
 
 /**
+ * 直链相关参数接口
+ */
+export interface DirectLinkParams {
+  /** 文件ID */
+  fileId: string;
+}
+
+/**
  * 123网盘SDK主类
  * 提供123网盘的完整API功能
  */
@@ -115,6 +123,27 @@ export default class Pan123SDK {
    * @returns Promise<any> 下载链接信息
    */
   getFileDownloadUrl(params: { fileId: string }): Promise<any>;
+
+  /**
+   * 获取文件直链链接
+   * @param params 包含文件ID的参数对象
+   * @returns Promise<any> 直链链接信息
+   */
+  getFileDirectLink(params: DirectLinkParams): Promise<any>;
+
+  /**
+   * 启用文件直链
+   * @param params 包含文件ID的参数对象
+   * @returns Promise<any> 启用直链结果
+   */
+  enableDirectLink(params: DirectLinkParams): Promise<any>;
+
+  /**
+   * 禁用文件直链
+   * @param params 包含文件ID的参数对象
+   * @returns Promise<any> 禁用直链结果
+   */
+  disableDirectLink(params: DirectLinkParams): Promise<any>;
 
   /**
    * 检查访问令牌是否有效

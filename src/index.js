@@ -52,7 +52,9 @@ export default class Pan123SDK {
       this.request.accessToken = response.accessToken;
       return response.accessToken;
     } catch (error) {
-      throw new Error(`获取access token失败，请检查clientId 和 clientSecret是否正确`);
+      throw new Error(
+        `获取access token失败，请检查clientId 和 clientSecret是否正确`
+      );
     }
   }
 
@@ -67,11 +69,8 @@ export default class Pan123SDK {
    */
   async uploadFile(filePath, options) {
     try {
-      console.log("ccc");
-
       // 获取文件信息
       const fileStats = fs.statSync(filePath);
-      console.log("dddd");
 
       const fileName = path.basename(filePath);
       const fileInfo = new File([fs.readFileSync(filePath)], fileName, {
@@ -365,6 +364,43 @@ export default class Pan123SDK {
       url: API_ENDPOINTS.FILE_DELETE,
       method: "POST",
       data: { fileIDs },
+    });
+    return res;
+  }
+  /**
+   * 启用直链
+   * @param {string} fileID 文件夹的fileID
+   * @returns {Promise<Object>} 启用直链结果
+   */
+  async enableDirectLink(fileID) {
+    let res = await this.request.request({
+      url: API_ENDPOINTS.ENABLE_DIRECT_LINK,
+      method: "POST",
+      data: { fileID },
+    });
+    return res;
+  }
+  /**
+   * 禁用直链
+   * @param {string} 文件夹的fileID
+   * @returns {Promise<Object>} 禁用直链结果
+   */
+  async disableDirectLink(fileID) {
+    let res = await this.request.request({
+      url: API_ENDPOINTS.DISABLE_DIRECT_LINK,
+      method: "POST",
+      data: { fileID },
+    });
+    return res;
+  }
+  /**
+   * 获取直链链接
+   */
+  async getFileDirectLink(fileID) {
+    let res = await this.request.request({
+      url: API_ENDPOINTS.FILE_DIRECT_LINK,
+      method: "GET",
+      params: { fileID },
     });
     return res;
   }
