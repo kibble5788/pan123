@@ -27,11 +27,19 @@
 
 ## 📦 安装
 
+### CDN 安装
+
+```
+https://cdn.jsdelivr.net/npm/@ked3/pan123-sdk@1.0.7/dist/pan123-sdk.cjs
+```
+
 ### NPM 安装
 
 ```bash
 npm install @ked3/pan123-sdk
 ```
+
+
 
 ## 🚀 快速开始
 
