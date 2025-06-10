@@ -1,6 +1,6 @@
 {
   "name": "@ked3/pan123-sdk",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "123网盘SDK，支持文件上传、下载、管理等功能",
   "main": "dist/pan123-sdk.cjs",
   "module": "dist/pan123-sdk.esm.js",
