@@ -47,6 +47,8 @@ export const API_ENDPOINTS = {
   ENABLE_DIRECT_LINK: "/api/v1/direct-link/enable",
   /** 禁用直链 */
   DISABLE_DIRECT_LINK: "/api/v1/direct-link/disable",
+    /** 创建文件夹 */
+  CREATE_FOLDER: "/upload/v1/file/mkdir",
 };
 
 export const COMMON_HEADERS = {
