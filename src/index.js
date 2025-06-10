@@ -404,6 +404,20 @@ export default class Pan123SDK {
     });
     return res;
   }
+    /**
+ * 创建文件夹
+ * @param {string} folderName 文件夹名称
+ * @param {string} parentID 父文件夹ID
+ * @returns {Promise<Object>} 创建文件夹结果
+ */
+  async createFolder(folderName, parentID) {
+    let res = await this.request.request({
+      url: API_ENDPOINTS.CREATE_FOLDER,
+      method: "POST",
+      data: { name: folderName, parentID: parentID },
+    });
+    return res;
+  }
 }
 
 // 兼容 CommonJS 和 ES Module
