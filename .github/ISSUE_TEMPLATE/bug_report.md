@@ -1,3 +1,11 @@
+
+---
+name: Bug report
+about: Found a bug in the program
+title: "[Bug] 标题"
+
+---
+
 **标题**：登录按钮无法跳转
 
 **描述**：
