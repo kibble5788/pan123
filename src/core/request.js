@@ -38,11 +38,13 @@ export default class Request {
     try {
       // 检查是否为二进制数据
       const isFormDataOrBuffer =
-        data instanceof FormData ||
-        data instanceof Buffer ||
-        data instanceof ArrayBuffer ||
-        data instanceof Blob ||
-        (data && data.buffer instanceof ArrayBuffer);
+        (typeof FormData !== "undefined" && data instanceof FormData) ||
+        (typeof Buffer !== "undefined" && data instanceof Buffer) ||
+        (typeof ArrayBuffer !== "undefined" && data instanceof ArrayBuffer) ||
+        (typeof Blob !== "undefined" && data instanceof Blob) ||
+        (typeof ArrayBuffer !== "undefined" &&
+          data &&
+          data.buffer instanceof ArrayBuffer);
 
       // 创建axios配置
       const axiosConfig = {

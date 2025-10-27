@@ -41,6 +41,7 @@ export default class Pan123SDK {
           client_secret: this.config.clientSecret,
         },
       });
+console.log('response',response);
 
       // 缓存token信息
       this.tokenCache = {
@@ -73,9 +74,8 @@ export default class Pan123SDK {
       const fileStats = fs.statSync(filePath);
 
       const fileName = path.basename(filePath);
-      const fileInfo = new File([fs.readFileSync(filePath)], fileName, {
-        type: "application/octet-stream",
-      });
+      const fileBuffer = fs.readFileSync(filePath);
+      const fileInfo = fileBuffer;
 
       // 计算MD5
       console.log("开始计算MD5");

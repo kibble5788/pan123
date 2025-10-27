@@ -26,17 +26,51 @@ export default class FileService {
 
   /**
    * 文件分片
-   * @param {File} file 文件对象
+   * 支持 File / Blob / Buffer / Uint8Array
+   * @param {any} file 文件对象
    * @param {number} sliceSize 分片大小
-   * @returns {Array<Blob>} 分片数组
+   * @returns {Array<Buffer|Blob|Uint8Array>} 分片数组
    */
   sliceFile(file, sliceSize) {
     const chunks = [];
     let start = 0;
 
-    while (start < file.size) {
-      const end = Math.min(start + sliceSize, file.size);
-      const chunk = file.slice(start, end);
+    const size =
+      typeof file?.size === "number"
+        ? file.size
+        : typeof file?.length === "number"
+        ? file.length
+        : 0;
+
+    if (size <= 0) {
+      return chunks;
+    }
+
+    const hasSlice = file && typeof file.slice === "function";
+    const hasSubarray = file && typeof file.subarray === "function";
+
+    while (start < size) {
+      const end = Math.min(start + sliceSize, size);
+      let chunk;
+
+      if (hasSlice) {
+        chunk = file.slice(start, end);
+      } else if (hasSubarray) {
+        chunk = file.subarray(start, end);
+      } else if (
+        typeof Buffer !== "undefined" &&
+        Buffer.isBuffer &&
+        Buffer.isBuffer(file)
+      ) {
+        chunk = file.subarray(start, end);
+      } else if (file && file.buffer instanceof ArrayBuffer) {
+        const view = new Uint8Array(file.buffer);
+        chunk = view.subarray(start, end);
+      } else {
+        // Fallback: attempt to use slice on array-like
+        chunk = file.slice ? file.slice(start, end) : file.subarray(start, end);
+      }
+
       chunks.push(chunk);
       start = end;
     }
