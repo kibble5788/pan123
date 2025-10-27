@@ -1,5 +1,5 @@
 {
-  "name": "@ked3/pan123-sdk-v2",
+  "name": "@ked3/pan123-sdk",
   "version": "2.0.0",
   "description": "123网盘SDK TypeScript版本，支持文件上传、下载、管理等功能",
   "main": "dist/index.js",
