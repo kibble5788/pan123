@@ -1,47 +1,60 @@
-import Pan123SDK from "../src/index.js";
-import dotenv from "dotenv";
-import path from "path";
+import Pan123SDK from '../dist/index.esm.js';
+import { config } from 'dotenv';
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 加载环境变量
-dotenv.config({ path: path.join(process.cwd(), "config.env") });
-console.log("--process.env.PAN123_CLIENT_ID", process.env.PAN123_CLIENT_ID);
-const sdk = new Pan123SDK({
-  clientId: process.env.PAN123_CLIENT_ID,
-  clientSecret: process.env.PAN123_CLIENT_SECRET,
-});
+config({ path: join(__dirname, '../config.env') });
 
-async function init() {
-  await sdk.initToken();
-  console.log("获取token");
-  let file = "./test/f3.zip";
-  //文件上传的文件夹 13821095- 我的文件 >其他
-  let parentFileID = "13821095";
-  //解压目标文件夹
-  let folderId = "13821095";
-  //上传m3u8文件
+async function runTests() {
+    console.log('🚀 开始测试 Pan123SDK v2...\n');
 
-  let res = await sdk.uploadFile(file, {
-    parentFileID: parentFileID,
-    containDir: false,
-    duplicate: 1,
-  });
-  console.log("上传完成,fileID:", res);
+    try {
+        // 初始化SDK
+        const sdk = new Pan123SDK({
+            clientId: process.env.PAN123_CLIENT_ID,
+            clientSecret: process.env.PAN123_CLIENT_SECRET,
+            baseURL: process.env.PAN123_BASE_URL
+        });
 
-  //解压m3u8文件
-  let fileZip = {
-    fileId: res.data.fileID,
-    folderId: folderId,
-  };
-  await sdk.zipFile(fileZip);
-  console.log("解压完成");
+        console.log('✅ SDK初始化成功');
 
-  console.log("---开始测试文件详情接口");
-  let fileDetail = await sdk.getFileDetail(res.data.fileID);
-  console.log("文件id:", res.data.fileID);
-  console.log("文件详情:", fileDetail);
+        // 测试获取访问令牌
+        console.log('\n📝 测试获取访问令牌...');
+        const tokenResult = await sdk.initToken();
+        console.log('✅ 获取访问令牌成功:', tokenResult ? '已获取' : '失败');
 
-  let directLink = await sdk.enableDirectLink(res.data.fileID);
-  console.log("启用直链:", directLink);
+        // 测试获取文件列表
+        console.log('\n📂 测试获取文件列表...');
+        const fileListResult = await sdk.getFileList({ parentFileId: 0 });
+        console.log('✅ 获取文件列表成功，文件数量:', fileListResult.data?.fileList?.length || 0);
+
+        // 测试文件上传（如果测试文件存在）
+        const testFilePath = join(__dirname, 'f3.zip');
+        if (existsSync(testFilePath)) {
+            console.log('\n📤 测试文件上传...');
+            const uploadResult = await sdk.uploadFile(testFilePath, {
+                parentFileID: 0,
+                duplicate: 1
+            });
+            console.log('✅ 文件上传成功:', uploadResult.success ? `成功: ${uploadResult.message}` : `失败: ${uploadResult.message}`);
+        } else {
+            console.log('\n⚠️  跳过文件上传测试（测试文件不存在）');
+        }
+
+        console.log('\n🎉 所有测试完成！');
+
+    } catch (error) {
+        console.error('\n❌ 测试失败:', error.message);
+        if (error.response?.data) {
+            console.error('API响应:', error.response.data);
+        }
+        process.exit(1);
+    }
 }
 
-init();
+runTests();

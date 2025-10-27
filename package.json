@@ -1,14 +1,15 @@
 {
-  "name": "@ked3/pan123-sdk",
-  "version": "1.0.8",
-  "description": "123网盘SDK，支持文件上传、下载、管理等功能",
-  "main": "dist/pan123-sdk.cjs",
-  "module": "dist/pan123-sdk.esm.js",
+  "name": "@ked3/pan123-sdk-v2",
+  "version": "2.0.0",
+  "description": "123网盘SDK TypeScript版本，支持文件上传、下载、管理等功能",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/pan123-sdk.esm.js",
-      "require": "./dist/pan123-sdk.cjs",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
   },
@@ -30,29 +31,34 @@
     "file-upload",
     "file-download",
     "sdk",
-    "api"
+    "api",
+    "typescript"
   ],
   "scripts": {
-    "build": "NODE_ENV=production webpack --mode production",
-    "build:dev": "webpack --mode development",
-    "debug": "node ./test/index.js",
-    "prepublishOnly": "npm run build"
+    "build": "tsc && rollup -c",
+    "build:dev": "tsc --watch",
+    "dev": "tsc --watch",
+    "test": "node  ./test/index.js",
+    "debug": "node --loader ts-node/esm ./test/index.ts",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.10",
-    "@babel/preset-env": "^7.26.9",
-    "@ked3/pan123-sdk": "^1.0.5",
-    "babel-loader": "^10.0.0",
-    "babel-plugin-transform-remove-console": "^6.9.4",
-    "webpack": "^5.99.5",
-    "webpack-cli": "^6.0.1",
-    "webpack-merge": "^6.0.1"
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@types/crypto-js": "^4.2.1",
+    "@types/node": "^20.10.5",
+    "rimraf": "^5.0.5",
+    "rollup": "^4.9.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "axios": "^1.8.4",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.5",
     "https-proxy-agent": "^7.0.6",
-    "node-fetch": "^3.3.2"
+    "tslib": "^2.8.1"
   }
 }
