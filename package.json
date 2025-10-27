@@ -48,6 +48,7 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.5",
     "@types/crypto-js": "^4.2.1",
+    "@types/estree": "^1.0.8",
     "@types/node": "^20.10.5",
     "rimraf": "^5.0.5",
     "rollup": "^4.9.1",
