@@ -6,6 +6,15 @@
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "scripts": {
+    "build": "tsc && rollup -c",
+    "build:dev": "tsc --watch",
+    "dev": "tsc --watch",
+    "test": "node  ./test/index.js",
+    "debug": "node --loader ts-node/esm ./test/index.ts",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.esm.js",
@@ -34,15 +43,6 @@
     "api",
     "typescript"
   ],
-  "scripts": {
-    "build": "tsc && rollup -c",
-    "build:dev": "tsc --watch",
-    "dev": "tsc --watch",
-    "test": "node  ./test/index.js",
-    "debug": "node --loader ts-node/esm ./test/index.ts",
-    "clean": "rimraf dist",
-    "prepublishOnly": "npm run clean && npm run build"
-  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",

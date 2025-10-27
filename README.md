@@ -108,7 +108,7 @@ interface Pan123Config {
 npm test
 
 # 或直接运行测试文件
-node test/simple-test.js
+node test/index.js
 ```
 
 ## 🏗️ 构建
