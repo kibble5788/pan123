@@ -237,16 +237,17 @@ export default class FileService {
     totalChunks: number;
   }>> {
     try {
-      const response = await this.request.request({
+      //TODO: ts类型有误
+      const response: any = await this.request.request({
         url: API_ENDPOINTS.LIST_UPLOADED_CHUNKS,
         method: 'GET',
         params: { preuploadID },
       });
 
       return {
-        success: response.ok,
+        success: response.code == 0,
         data: response.data,
-        message: response.ok ? 'Success' : 'Failed',
+        message: response.message ,
       };
     } catch (error) {
       throw error;
