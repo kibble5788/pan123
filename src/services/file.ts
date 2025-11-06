@@ -392,16 +392,17 @@ console.log(response.code);
    */
   async createOfflineDownload(params: OfflineDownloadParams): Promise<CommonResult<OfflineDownloadResponse>> {
     try {
-      const response = await this.request.request<OfflineDownloadResponse>({
+      //TODO:ts类型错误
+      const response : any = await this.request.request<OfflineDownloadResponse>({
         url: API_ENDPOINTS.OFFLINE_DOWNLOAD,
         method: 'POST',
         data: params,
       });
-  console.log(response)
+  
       return {
-        success: response.ok,
+        success: response.code == 0 ,
         data: response.data,
-        message: response.ok ? 'Success' : 'Failed',
+        message: response.message,
       };
     } catch (error) {
       throw error;
