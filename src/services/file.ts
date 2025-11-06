@@ -8,6 +8,8 @@ import type {
   CreateFileResponse,
   UploadUrlResponse,
   UploadCompleteResponse,
+  OfflineDownloadParams,
+  OfflineDownloadResponse,
   ChunkType,
   SupportedFileType,
   CommonResult
@@ -380,5 +382,28 @@ export default class FileService {
       data: response.data,
       message: response.ok ? 'Success' : 'Failed',
     };
+  }
+
+  /**
+   * 创建离线下载任务
+   * @param params 离线下载参数，包含 url / fileName / dirID / callBackUrl
+   * @returns 任务ID
+   */
+  async createOfflineDownload(params: OfflineDownloadParams): Promise<CommonResult<OfflineDownloadResponse>> {
+    try {
+      const response = await this.request.request<OfflineDownloadResponse>({
+        url: API_ENDPOINTS.OFFLINE_DOWNLOAD,
+        method: 'POST',
+        data: params,
+      });
+
+      return {
+        success: response.ok,
+        data: response.data,
+        message: response.ok ? 'Success' : 'Failed',
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 }

@@ -59,6 +59,8 @@ export const API_ENDPOINTS = {
   DISABLE_DIRECT_LINK: "/api/v1/direct-link/disable",
   /** 创建文件夹 */
   FOLDER_CREATE: "/upload/v1/file/mkdir",
+  /** 离线下载（创建任务） */
+  OFFLINE_DOWNLOAD: "/api/v1/offline/download",
 } as const;
 
 /**

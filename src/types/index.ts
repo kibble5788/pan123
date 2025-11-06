@@ -207,6 +207,28 @@ export interface UploadCompleteResponse {
 }
 
 /**
+ * 离线下载创建任务参数
+ */
+export interface OfflineDownloadParams {
+  /** 下载资源地址，仅支持 http/https */
+  url: string;
+  /** 自定义文件名称（可选） */
+  fileName?: string;
+  /** 指定目录 ID（可选） */
+  dirID?: number;
+  /** 回调地址（可选） */
+  callBackUrl?: string;
+}
+
+/**
+ * 离线下载创建任务响应
+ */
+export interface OfflineDownloadResponse {
+  /** 离线下载任务ID */
+  taskID: number;
+}
+
+/**
  * 支持的文件类型
  */
 export type SupportedFileType = File | Blob | Buffer | Uint8Array | ArrayBuffer;
