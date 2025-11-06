@@ -7,8 +7,23 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// 加载环境变量
-config({ path: join(__dirname, '../config.env') });
+// 加载环境变量（仅在本地存在 config.env 时使用）
+const localEnvPath = join(__dirname, '../config.env');
+if (existsSync(localEnvPath)) {
+    config({ path: localEnvPath });
+    console.log('Loaded local env from', localEnvPath);
+} else {
+    console.log('No local config.env found; relying on process.env (CI should inject secrets).');
+}
+
+// 在继续之前校验必须的环境变量，尽早失败并给出可操作的提示
+const _requiredEnv = ['PAN123_CLIENT_ID', 'PAN123_CLIENT_SECRET', 'PAN123_BASE_URL'];
+const _missing = _requiredEnv.filter(k => !process.env[k]);
+if (_missing.length) {
+    console.error('\n❌ 缺少必需的环境变量：', _missing.join(', '));
+    console.error('请在 GitHub 仓库 Secrets 中添加这些变量，或在本地创建 config.env 并填入对应的键值。');
+    process.exit(1);
+}
 
 async function runTests() {
     console.log('🚀 开始测试 Pan123SDK v2...\n');

@@ -1,0 +1,38 @@
+name: CI - Run tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PAN123_BASE_URL: ${{ secrets.PAN123_BASE_URL }}
+      PAN123_CLIENT_ID: ${{ secrets.PAN123_CLIENT_ID }}
+      PAN123_CLIENT_SECRET: ${{ secrets.PAN123_CLIENT_SECRET }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Run tests
+        run: node ./test/index.js
