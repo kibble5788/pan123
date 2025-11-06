@@ -396,7 +396,7 @@ export default class FileService {
         method: 'POST',
         data: params,
       });
-
+  console.log(response)
       return {
         success: response.ok,
         data: response.data,
