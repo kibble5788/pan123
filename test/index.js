@@ -61,6 +61,20 @@ async function runTests() {
             console.log('\n⚠️  跳过文件上传测试（测试文件不存在）');
         }
 
+        // 测试离线下载（创建任务）
+        console.log('\n⬇️ 测试创建离线下载任务...');
+        const offlineUrl = 'http://m701.music.126.net/20251107010546/fe8baa1b75a87be638c00cfed631a60b/jdymusic/obj/w5zDlMODwrDDiGjCn8Ky/1497780933/89ac/10f1/f3ff/9589a9750b9c0ce7868f74d4ac789f64.mp3?vuutv=cMTUh9yl1Y6xgBgUftxm9hQUpr/n9s0iuHJZafnZj2w63Su0G7hPhDk1KREHaLoilOfT5hmMpYBtsiNYH3fgtL11pJnTC3FfvOY4XOcXgGc=';
+        try {
+            // 使用 SDK 的 file 服务创建离线下载任务
+            const offlineResult = await sdk.file.createOfflineDownload({
+                url: offlineUrl,
+                fileName: 'test_offline.mp3'
+            });
+            console.log('✅ 离线下载任务创建结果:', offlineResult);
+        } catch (err) {
+            console.error('❌ 创建离线下载任务失败:', err && err.message ? err.message : err);
+        }
+
         console.log('\n🎉 所有测试完成！');
 
     } catch (error) {
