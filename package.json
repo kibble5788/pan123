@@ -1,8 +1,8 @@
 {
   "name": "@ked3/pan123-sdk",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "123网盘SDK TypeScript版本，支持文件上传、下载、管理等功能",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -18,7 +18,7 @@
   "exports": {
     ".": {
       "import": "./dist/index.esm.js",
-      "require": "./dist/index.js",
+      "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     }
   },
