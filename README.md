@@ -15,7 +15,7 @@
 ## 📦 安装
 
 ```bash
-npm install @ked3/pan123-sdk-v2
+npm install @ked3/pan123-sdk
 ```
 
 ## 🚀 快速开始
@@ -23,7 +23,7 @@ npm install @ked3/pan123-sdk-v2
 ### 基础配置
 
 ```typescript
-import Pan123SDK from '@ked3/pan123-sdk-v2';
+import Pan123SDK from '@ked3/pan123-sdk';
 
 const sdk = new Pan123SDK({
   clientId: 'your-client-id',
@@ -42,26 +42,37 @@ PAN123_CLIENT_SECRET=your-client-secret
 PAN123_BASE_URL=https://open-api.123pan.com
 ```
 
-### 基本使用
+### 基本使用（无需手动初始化令牌）
 
 ```typescript
-// 初始化访问令牌
-const token = await sdk.initToken();
-console.log('访问令牌:', token);
-
-// 获取根目录文件列表
+// 获取根目录文件列表（首次调用会自动初始化并缓存令牌）
 const fileList = await sdk.getFileList({ parentFileId: 0 });
 console.log('文件列表:', fileList.data.fileList);
 
-// 上传文件
+// 上传文件（令牌自动管理）
 const uploadResult = await sdk.uploadFile('./test.zip', {
   parentFileID: 0,
   duplicate: 1 // 1-保留两者，2-覆盖
 });
 console.log('上传结果:', uploadResult);
 
-// 创建文件夹
+// 创建文件夹（令牌自动管理）
 const folder = await sdk.createFolder('新文件夹', 0);
+console.log('文件夹创建:', folder);
+```
+
+### CommonJS 用法
+
+```javascript
+const Pan123SDK = require('@ked3/pan123-sdk');
+
+const sdk = new Pan123SDK({
+  clientId: 'your-client-id',
+  clientSecret: 'your-client-secret',
+});
+
+// 不需要显式调用 initToken，首次调用会自动初始化并缓存令牌
+const folder = await sdk.createFolder('新文件夹11', 0);
 console.log('文件夹创建:', folder);
 ```
 
@@ -83,9 +94,11 @@ console.log('文件夹创建:', folder);
 - ✅ 创建离线下载任务
 
 ### 令牌管理
-- ✅ 自动令牌获取
-- ✅ 令牌缓存机制
-- ✅ 令牌自动刷新
+- ✅ 自动令牌获取（首次需要鉴权的调用会自动初始化）
+- ✅ 令牌缓存机制（持久于 SDK 实例内存）
+- ✅ 令牌自动刷新（在过期前 5 分钟自动刷新）
+
+说明：无需显式调用 `initToken()`。SDK 会在首次需要鉴权的 API 调用前自动完成令牌初始化并写入请求实例；当令牌即将过期时（提前 5 分钟），会自动刷新并更新缓存。
 
 ## 🔧 配置选项
 
@@ -128,7 +141,6 @@ npm run clean
 ## 📁 项目结构
 
 ```
-v2/
 ├── src/                 # 源代码
 │   ├── core/           # 核心模块
 │   ├── services/       # 服务模块

@@ -16,7 +16,9 @@ import type {
   RenameFileParams,
   DeleteFileParams,
   CommonResult,
-  ApiResponse
+  ApiResponse,
+  OfflineDownloadParams,
+  OfflineDownloadResponse
 } from '@/types';
 
 /**
@@ -84,7 +86,8 @@ export default class Pan123SDK {
       // 缓存token信息
       this.tokenCache = {
         accessToken: response.data.accessToken,
-        expiresIn: parseInt(response.data.expiredAt),
+        // 使用毫秒时间戳缓存过期时间，便于有效性判断
+        expiresIn: new Date(response.data.expiredAt).getTime(),
         tokenTime: Date.now(),
       };
 
@@ -99,6 +102,24 @@ export default class Pan123SDK {
   }
 
   /**
+   * 确保令牌已初始化并可用（懒加载）
+   * - 如果令牌不存在或已过期，则调用 initToken
+   * - 如果令牌存在但未设置到请求实例，进行同步
+   */
+  private async ensureToken(): Promise<void> {
+    // 如果当前缓存令牌不可用，则初始化令牌
+    if (!isTokenValid(this.tokenCache)) {
+      await this.initToken();
+      return;
+    }
+    // 若请求实例未持有令牌，则同步令牌
+    const currentToken = this.request.getAccessToken?.() || (this as any).request.accessToken;
+    if (!currentToken && this.tokenCache.accessToken) {
+      this.request.setAccessToken(this.tokenCache.accessToken);
+    }
+  }
+
+  /**
    * 完整的文件上传流程
    * @param filePath 文件本地路径
    * @param options 上传选项
@@ -106,6 +127,8 @@ export default class Pan123SDK {
    */
   async uploadFile(filePath: string, options: UploadOptions = {}): Promise<UploadResult> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       // 获取文件信息
       const fileStats = fs.statSync(filePath);
       const fileName = path.basename(filePath);
@@ -231,6 +254,8 @@ export default class Pan123SDK {
     const tk = new Date().valueOf();
 
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       // 创建解压任务
       const res = await this.request.request({
         baseURL: API_BASE_URL_WEB,
@@ -339,6 +364,8 @@ export default class Pan123SDK {
     lastFileId?: number;
   }>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const {
         parentFileId = 0,
         limit = 100,
@@ -380,6 +407,8 @@ export default class Pan123SDK {
    */
   async getFileDetail(fileID: number): Promise<CommonResult<FileInfo>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const res = await this.request.request({
         url: API_ENDPOINTS.FILE_DETAIL,
         method: 'GET',
@@ -410,6 +439,8 @@ export default class Pan123SDK {
     expiresAt: string;
   }>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const res = await this.request.request({
         url: API_ENDPOINTS.FILE_DOWNLOAD,
         method: 'GET',
@@ -433,6 +464,8 @@ export default class Pan123SDK {
    */
   async resetFileName(params: RenameFileParams): Promise<CommonResult<FileInfo>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const { fileId, fileName } = params;
       const res = await this.request.request({
         url: API_ENDPOINTS.RENAME_FILE,
@@ -464,6 +497,8 @@ export default class Pan123SDK {
     failedFiles: number[];
   }>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const { fileIDs } = params;
       const res = await this.request.request({
         url: API_ENDPOINTS.DELETE_FILE,
@@ -492,6 +527,8 @@ export default class Pan123SDK {
    */
   async enableDirectLink(fileID: number): Promise<CommonResult<any>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const res = await this.request.request({
         url: API_ENDPOINTS.ENABLE_DIRECT_LINK,
         method: 'POST',
@@ -519,6 +556,8 @@ export default class Pan123SDK {
    */
   async disableDirectLink(fileID: number): Promise<CommonResult<any>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const res = await this.request.request({
         url: API_ENDPOINTS.DISABLE_DIRECT_LINK,
         method: 'POST',
@@ -549,6 +588,8 @@ export default class Pan123SDK {
     expiresAt: string;
   }>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const res = await this.request.request({
         url: API_ENDPOINTS.GET_DIRECT_LINK,
         method: 'GET',
@@ -577,6 +618,8 @@ export default class Pan123SDK {
    */
   async createFolder(folderName: string, parentID: number = 0): Promise<CommonResult<FileInfo>> {
     try {
+      // 确保令牌已就绪
+      await this.ensureToken();
       const res = await this.request.request({
         url: API_ENDPOINTS.FOLDER_CREATE,
         method: 'POST',
@@ -593,6 +636,29 @@ export default class Pan123SDK {
         success: false,
         data: null,
         message: error instanceof Error ? error.message : '创建文件夹失败',
+      };
+    }
+  }
+
+  /**
+   * 创建离线下载任务
+   * @param params 离线下载参数（url、fileName、dirID、callBackUrl）
+   * @returns 离线下载任务ID
+   */
+  async createOfflineDownload(
+    params: OfflineDownloadParams
+  ): Promise<CommonResult<OfflineDownloadResponse>> {
+    try {
+      // 确保令牌已就绪
+      await this.ensureToken();
+      // 委托给文件服务
+      const result = await this.file.createOfflineDownload(params);
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: error instanceof Error ? error.message : '创建离线下载任务失败',
       };
     }
   }
@@ -637,4 +703,6 @@ export type {
   DeleteFileParams,
   CommonResult,
   ApiResponse,
+  OfflineDownloadParams,
+  OfflineDownloadResponse,
 };

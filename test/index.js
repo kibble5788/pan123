@@ -38,10 +38,8 @@ async function runTests() {
 
         console.log('✅ SDK初始化成功');
 
-        // 测试获取访问令牌
-        console.log('\n📝 测试获取访问令牌...');
-        const tokenResult = await sdk.initToken();
-        console.log('✅ 获取访问令牌成功:', tokenResult ? '已获取' : '失败');
+        // 不再显式调用 initToken，首次鉴权调用会自动初始化并缓存令牌
+        console.log('\n📝 令牌初始化将由首次鉴权的 API 调用自动触发');
 
         // 测试获取文件列表
         console.log('\n📂 测试获取文件列表...');
