@@ -14,6 +14,7 @@ export interface Pan123Config {
   baseURL?: string;
   /** 访问令牌 (可选) */
   accessToken?: string;
+  debug?: boolean;
 }
 
 /**

@@ -243,7 +243,7 @@ export default class FileService {
         method: 'GET',
         params: { preuploadID },
       });
-console.log(response.code);
+ 
       return {
         success: response.code == 0,
         data: response.data,

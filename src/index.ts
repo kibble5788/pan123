@@ -80,8 +80,10 @@ export default class Pan123SDK {
           client_secret: this.config.clientSecret,
         },
       });
+      if (this.config?.debug) {
+        console.log('Token response:', response.data);
+      }
 
-      console.log('Token response:', response.data);
 
       // 缓存token信息
       this.tokenCache = {
@@ -135,10 +137,15 @@ export default class Pan123SDK {
       const fileBuffer = fs.readFileSync(filePath);
 
       // 计算MD5
-      console.log('开始计算MD5');
-      const etag = await this.file.calculateFileMD5FromPath(filePath);
 
-      console.log('开始创建文件');
+      if (this.config?.debug) {
+        console.log('开始计算MD5');
+      }
+      const etag = await this.file.calculateFileMD5FromPath(filePath);
+      if (this.config?.debug) {
+        console.log('开始创建文件');
+      }
+
 
       // 1. 创建文件
       const createResult = await this.file.createFile({
@@ -151,8 +158,10 @@ export default class Pan123SDK {
         duplicate: options.duplicate || 1,
         containDir: options.containDir || false,
       });
+      if (this.config?.debug) {
+        console.log('判断是否秒传成功', createResult);
+      }
 
-      console.log('判断是否秒传成功', createResult);
 
       // 判断是否秒传成功
       if (createResult?.reuse === true) {
@@ -177,7 +186,10 @@ export default class Pan123SDK {
       // 文件分片
       const chunks = this.file.sliceFile(fileBuffer, sliceSize);
       const totalChunks = chunks.length;
-      console.log('分片数量:', totalChunks);
+
+      if (this.config?.debug) {
+        console.log('分片数量:', totalChunks);
+      }
 
       if (totalChunks === 0) {
         return {
@@ -196,7 +208,10 @@ export default class Pan123SDK {
           preuploadID,
           sliceNo
         );
-        console.log('获取上传地址', urlResult.presignedURL);
+        if (this.config?.debug) {
+          console.log('获取上传地址', urlResult.presignedURL);
+        }
+
 
         // 3. 上传分片
         await this.file.uploadChunk(urlResult.presignedURL, chunks[i]);
@@ -213,8 +228,10 @@ export default class Pan123SDK {
       const completeResult = await this.file.completeUpload(
         preuploadID
       );
-      console.log('上传完成', completeResult);
 
+      if (this.config?.debug) {
+        console.log('上传完成', completeResult);
+      }
       // 判断是否需要异步轮询
       if (completeResult.async === true) {
         // 6. 轮询获取结果
@@ -233,7 +250,9 @@ export default class Pan123SDK {
         };
       }
     } catch (error) {
-      console.log('Upload error:', error);
+      if (this.config?.debug) {
+        console.log('Upload error:', error);
+      }
 
       return {
         success: false,
@@ -287,11 +306,15 @@ export default class Pan123SDK {
         });
 
         if (statusInfo.state === 2) {
-          console.log('解压成功');
+          if (this.config?.debug) {
+            console.log('解压成功');
+          }
           status = 2;
           fileInfo = statusInfo;
         } else {
-          console.log('正在打开压缩包');
+          if (this.config?.debug) {
+            console.log('正在打开压缩包');
+          }
           await delay(1000);
           await getStatus();
         }
@@ -313,7 +336,9 @@ export default class Pan123SDK {
         },
       });
 
-      console.log('解压中', res2);
+      if (this.config?.debug) {
+        console.log('解压中', res2);
+      }
 
       const getStatus2 = async (): Promise<void> => {
         const { data: statusInfo } = await this.request.request({
@@ -329,9 +354,13 @@ export default class Pan123SDK {
         });
 
         if (statusInfo.state === 2) {
-          console.log('解压成功2');
+          if (this.config?.debug) {
+            console.log('解压成功2');
+          }
         } else {
-          console.log('解压状态：', statusInfo.state);
+          if (this.config?.debug) {
+            console.log('解压状态：', statusInfo.state);
+          }
           await delay(1000);
           await getStatus2();
         }

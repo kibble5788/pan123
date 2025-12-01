@@ -69,6 +69,7 @@ const Pan123SDK = require('@ked3/pan123-sdk');
 const sdk = new Pan123SDK({
   clientId: 'your-client-id',
   clientSecret: 'your-client-secret',
+  debug: true
 });
 
 // 不需要显式调用 initToken，首次调用会自动初始化并缓存令牌
