@@ -624,7 +624,9 @@ export default class Pan123SDK {
         method: 'GET',
         params: { fileID },
       });
-
+  if (this.config?.debug) {
+        console.log('获取直链结果：', res);
+      }
       return {
         success: true,
         data: res.data,
