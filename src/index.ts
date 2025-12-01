@@ -155,7 +155,7 @@ export default class Pan123SDK {
       console.log('判断是否秒传成功', createResult);
 
       // 判断是否秒传成功
-      if (createResult.reuse === true) {
+      if (createResult?.reuse === true) {
         return {
           success: true,
           data: createResult,
@@ -169,7 +169,7 @@ export default class Pan123SDK {
       if (!preuploadID || !sliceSize) {
         return {
           success: false,
-          data: null,
+          data: createResult,
           message: '获取上传参数失败',
         };
       }
