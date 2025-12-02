@@ -1,19 +1,5 @@
-# 环境变量文件
-config.env
-.env
-*.env
-
-# 依赖
 node_modules/
-
-# 日志文件
-*.log
-
-# 临时文件
-*.tmp
-*.temp
-
-# 构建输出
 dist/
-build/ 
+*.log
 .DS_Store
+.env

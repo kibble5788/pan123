@@ -1,739 +1,430 @@
-import { Request } from '@/core';
-import { FileService } from '@/services';
-import { API_ENDPOINTS, API_BASE_URL_WEB } from '@/core/constants';
-import { getParamKey, isTokenValid, delay } from '@/core/utils';
-import fs from 'fs';
-import path from 'path';
+import crypto from "crypto";
+import fs from "fs";
 import type {
-  Pan123Config,
-  TokenCache,
-  UploadOptions,
+  Pan123SDKConfig,
+  FileListResponse,
+  CreateFileResponse,
+  UploadCompleteResponse,
   UploadResult,
-  FileListParams,
-  FileInfo,
-  ZipFileParams,
-  DirectLinkParams,
-  RenameFileParams,
-  DeleteFileParams,
-  CommonResult,
   ApiResponse,
-  OfflineDownloadParams,
-  OfflineDownloadResponse
-} from '@/types';
+} from "./types";
+import { TokenManager } from "./token-manager";
+import { HttpClient } from "./http-client";
 
 /**
- * Pan123 云存储 SDK
- * 提供文件上传、下载、管理等功能的TypeScript实现
+ * 123云盘 SDK 主类
  */
-export default class Pan123SDK {
-  /** SDK配置 */
-  private config: Pan123Config;
-  /** HTTP请求实例 */
-  private request: Request;
-  /** 令牌缓存 */
-  private tokenCache: TokenCache;
-  /** 文件服务实例 */
-  public file: FileService;
+export class Pan123SDK {
+  private config: Required<Pan123SDKConfig>;
+  private tokenManager: TokenManager;
+  private httpClient: HttpClient;
 
-  /**
-   * 构造函数
-   * @param config SDK配置
-   */
-  constructor(config: Pan123Config) {
-    if (!config.clientId || !config.clientSecret) {
-      throw new Error('clientId 和 clientSecret 是必须的');
-    }
-
-    this.config = config;
-    this.request = new Request(config);
-
-    // 初始化token缓存
-    this.tokenCache = {
-      accessToken: '',
-      expiresIn: 0,
-      tokenTime: 0,
+  constructor(config: Pan123SDKConfig) {
+    this.config = {
+      baseURL: "https://open-api.123pan.com",
+      debug: false,
+      ...config,
     };
 
-    // 初始化各个服务
-    this.file = new FileService(this.request);
-  }
+    this.tokenManager = new TokenManager(
+      this.config.clientId,
+      this.config.clientSecret,
+      this.config.baseURL,
+      this.config.debug
+    );
 
-  /**
-   * 初始化访问令牌
-   * @returns 访问令牌
-   */
-  async initToken(): Promise<string> {
-    // 检查token是否过期
-    if (isTokenValid(this.tokenCache)) {
-      return this.tokenCache.accessToken;
-    }
-
-    try {
-      const response = await this.request.request<{
-        accessToken: string;
-        expiredAt: string;
-      }>({
-        url: API_ENDPOINTS.ACCESS_TOKEN,
-        method: 'POST',
-        data: {
-          client_id: this.config.clientId,
-          client_secret: this.config.clientSecret,
-        },
-      });
-      if (this.config?.debug) {
-        console.log('Token response:', response.data);
-      }
-
-
-      // 缓存token信息
-      this.tokenCache = {
-        accessToken: response.data.accessToken,
-        // 使用毫秒时间戳缓存过期时间，便于有效性判断
-        expiresIn: new Date(response.data.expiredAt).getTime(),
-        tokenTime: Date.now(),
-      };
-
-      // 设置到request实例中
-      this.request.setAccessToken(response.data.accessToken);
-      return response.data.accessToken;
-    } catch (error) {
-      throw new Error(
-        '获取access token失败，请检查clientId 和 clientSecret是否正确'
-      );
-    }
-  }
-
-  /**
-   * 确保令牌已初始化并可用（懒加载）
-   * - 如果令牌不存在或已过期，则调用 initToken
-   * - 如果令牌存在但未设置到请求实例，进行同步
-   */
-  private async ensureToken(): Promise<void> {
-    // 如果当前缓存令牌不可用，则初始化令牌
-    if (!isTokenValid(this.tokenCache)) {
-      await this.initToken();
-      return;
-    }
-    // 若请求实例未持有令牌，则同步令牌
-    const currentToken = this.request.getAccessToken?.() || (this as any).request.accessToken;
-    if (!currentToken && this.tokenCache.accessToken) {
-      this.request.setAccessToken(this.tokenCache.accessToken);
-    }
-  }
-
-  /**
-   * 完整的文件上传流程
-   * @param filePath 文件本地路径
-   * @param options 上传选项
-   * @returns 上传结果
-   */
-  async uploadFile(filePath: string, options: UploadOptions = {}): Promise<UploadResult> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      // 获取文件信息
-      const fileStats = fs.statSync(filePath);
-      const fileName = path.basename(filePath);
-      const fileBuffer = fs.readFileSync(filePath);
-
-      // 计算MD5
-
-      if (this.config?.debug) {
-        console.log('开始计算MD5');
-      }
-      const etag = await this.file.calculateFileMD5FromPath(filePath);
-      if (this.config?.debug) {
-        console.log('开始创建文件');
-      }
-
-
-      // 1. 创建文件
-      const createResult = await this.file.createFile({
-        parentFileID: options.parentFileID || 0,
-        filename: options.containDir
-          ? filePath.replace(/\\/g, '/').split('/').slice(-2).join('/') // 取最后两级路径作为相对路径
-          : fileName,
-        etag,
-        size: fileStats.size,
-        duplicate: options.duplicate || 1,
-        containDir: options.containDir || false,
-      });
-      if (this.config?.debug) {
-        console.log('判断是否秒传成功', createResult);
-      }
-
-
-      // 判断是否秒传成功
-      if (createResult?.reuse === true) {
-        return {
-          success: true,
-          data: createResult,
-          message: '文件秒传成功',
-        };
-      }
-
-      // 非秒传，继续上传流程
-      const { preuploadID, sliceSize } = createResult;
-
-      if (!preuploadID || !sliceSize) {
-        return {
-          success: false,
-          data: createResult,
-          message: '获取上传参数失败',
-        };
-      }
-
-      // 文件分片
-      const chunks = this.file.sliceFile(fileBuffer, sliceSize);
-      const totalChunks = chunks.length;
-
-      if (this.config?.debug) {
-        console.log('分片数量:', totalChunks);
-      }
-
-      if (totalChunks === 0) {
-        return {
-          success: false,
-          data: { filePath, sliceSize },
-          message: '分片失败,分片数量=0',
-        };
-      }
-
-      // 上传所有分片
-      for (let i = 0; i < totalChunks; i++) {
-        const sliceNo = i + 1; // 分片序号从1开始
-
-        // 2. 获取上传地址
-        const urlResult = await this.file.getUploadUrl(
-          preuploadID,
-          sliceNo
-        );
-        if (this.config?.debug) {
-          console.log('获取上传地址', urlResult.presignedURL);
-        }
-
-
-        // 3. 上传分片
-        await this.file.uploadChunk(urlResult.presignedURL, chunks[i]);
-        await delay(1000);
-      }
-
-      // 4. 文件比对（非必需，但建议执行）
-      if (fileStats.size > sliceSize) {
-        const chunksResult = await this.file.listUploadedChunks(preuploadID);
-        // 在这里可以比对本地与云端的分片MD5
-      }
-
-      // 5. 上传完成
-      const completeResult = await this.file.completeUpload(
-        preuploadID
-      );
-
-      if (this.config?.debug) {
-        console.log('上传完成', completeResult);
-      }
-      // 判断是否需要异步轮询
-      if (completeResult.async === true) {
-        // 6. 轮询获取结果
-        const finalResult = await this.file.pollUploadResult(preuploadID);
-
-        return {
-          success: true,
-          data: finalResult,
-          message: '文件上传成功',
-        };
-      } else {
-        return {
-          success: true,
-          data: completeResult,
-          message: '文件上传成功',
-        };
-      }
-    } catch (error) {
-      if (this.config?.debug) {
-        console.log('Upload error:', error);
-      }
-
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '上传失败',
-        error,
-      };
-    }
-  }
-
-  /**
-   * 解压文件
-   * @param params 解压参数
-   * @returns 解压结果
-   */
-  async zipFile(params: ZipFileParams): Promise<CommonResult<any>> {
-    const { fileId, folderId } = params;
-    const tk = new Date().valueOf();
-
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      // 创建解压任务
-      const res = await this.request.request({
-        baseURL: API_BASE_URL_WEB,
-        url: API_ENDPOINTS.UNCOMPRESS,
-        method: 'GET',
-        params: {
-          fileId,
-          password: '',
-          [tk]: getParamKey(tk),
-        },
-      });
-
-      // 轮询解压状态
-      const taskId = res.data.taskId;
-      let status = 0;
-      let fileInfo: any = {};
-
-      const getStatus = async (): Promise<void> => {
-        const { data: statusInfo } = await this.request.request({
-          baseURL: API_BASE_URL_WEB,
-          url: API_ENDPOINTS.UNCOMPRESS_STATUS,
-          method: 'GET',
-          params: {
-            fileId,
-            taskId: taskId,
-            taskType: 1,
-            [tk]: getParamKey(tk),
-          },
-        });
-
-        if (statusInfo.state === 2) {
-          if (this.config?.debug) {
-            console.log('解压成功');
-          }
-          status = 2;
-          fileInfo = statusInfo;
-        } else {
-          if (this.config?.debug) {
-            console.log('正在打开压缩包');
-          }
-          await delay(1000);
-          await getStatus();
-        }
-      };
-
-      await getStatus();
-
-      // 解压到目标文件夹
-      const res2 = await this.request.request({
-        baseURL: API_BASE_URL_WEB,
-        url: `${API_ENDPOINTS.UNCOMPRESS_DOWNLOAD}?${tk}=${getParamKey(tk)}`,
-        method: 'POST',
-        data: {
-          fileId: fileId,
-          list: fileInfo.list,
-          password: '',
-          targetFileId: folderId,
-          taskId: taskId,
-        },
-      });
-
-      if (this.config?.debug) {
-        console.log('解压中', res2);
-      }
-
-      const getStatus2 = async (): Promise<void> => {
-        const { data: statusInfo } = await this.request.request({
-          baseURL: API_BASE_URL_WEB,
-          url: API_ENDPOINTS.UNCOMPRESS_STATUS,
-          method: 'GET',
-          params: {
-            fileId,
-            taskId: taskId,
-            taskType: 2,
-            [tk]: getParamKey(tk),
-          },
-        });
-
-        if (statusInfo.state === 2) {
-          if (this.config?.debug) {
-            console.log('解压成功2');
-          }
-        } else {
-          if (this.config?.debug) {
-            console.log('解压状态：', statusInfo.state);
-          }
-          await delay(1000);
-          await getStatus2();
-        }
-      };
-
-      await getStatus2();
-
-      return {
-        success: true,
-        data: res2.data,
-        message: '解压成功',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '解压失败',
-      };
-    }
+    this.httpClient = new HttpClient(
+      this.config.baseURL,
+      this.tokenManager,
+      this.config.debug
+    );
   }
 
   /**
    * 获取文件列表
-   * @param params 查询参数
-   * @returns 文件列表
+   * @param parentFileId 父文件夹 ID，根目录为 0
+   * @param limit 每页数量，最大 100
+   * @param lastFileId 翻页标识
    */
-  async getFileList(params: FileListParams = {}): Promise<CommonResult<{
-    fileList: FileInfo[];
-    hasMore: boolean;
-    lastFileId?: number;
-  }>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const {
-        parentFileId = 0,
-        limit = 100,
-        searchData = '',
-        searchMode = 0,
-        lastFileId = 0,
-      } = params;
-
-      const res = await this.request.request({
-        url: API_ENDPOINTS.FILE_LIST,
-        method: 'GET',
-        params: {
-          parentFileId,
-          limit,
-          searchData,
-          searchMode,
-          lastFileId,
-        },
-      });
-
-      return {
-        success: true,
-        data: res.data,
-        message: '',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '获取文件列表失败',
-      };
+  async getFileList(
+    parentFileId: number = 0,
+    limit: number = 100,
+    lastFileId?: number
+  ): Promise<ApiResponse<FileListResponse>> {
+    const params: any = { parentFileId, limit };
+    if (lastFileId !== undefined) {
+      params.lastFileId = lastFileId;
     }
+
+    const response = await this.httpClient.get<FileListResponse>(
+      "/api/v2/file/list",
+      { params }
+    );
+
+    if (this.config.debug) {
+      console.log("[Pan123SDK] getFileList 响应:", response);
+    }
+
+    return response;
   }
 
   /**
-   * 获取单个文件详情
-   * @param fileID 文件ID
-   * @returns 文件详情
+   * 搜索文件
+   * @param searchData 搜索关键字
+   * @param searchMode 搜索模式：0-模糊搜索，1-精准搜索
+   * @param limit 每页数量
    */
-  async getFileDetail(fileID: number): Promise<CommonResult<FileInfo>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const res = await this.request.request({
-        url: API_ENDPOINTS.FILE_DETAIL,
-        method: 'GET',
-        params: { fileID },
-      });
+  async searchFiles(
+    searchData: string,
+    searchMode: 0 | 1 = 0,
+    limit: number = 100
+  ): Promise<ApiResponse<FileListResponse>> {
+    const response = await this.httpClient.get<FileListResponse>(
+      "/api/v2/file/list",
+      { params: { parentFileId: 0, limit, searchData, searchMode } }
+    );
 
-      return {
-        success: true,
-        data: res.data,
-        message: '',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '获取文件详情失败',
-      };
+    if (this.config.debug) {
+      console.log("[Pan123SDK] searchFiles 响应:", response);
     }
-  }
 
-  /**
-   * 获取文件下载链接
-   * @param fileId 文件ID
-   * @returns 下载链接
-   */
-  async getFileDownloadUrl(fileId: number): Promise<CommonResult<{
-    downloadUrl: string;
-    expiresAt: string;
-  }>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const res = await this.request.request({
-        url: API_ENDPOINTS.FILE_DOWNLOAD,
-        method: 'GET',
-        params: { fileId },
-      });
-
-      return {
-        success: true,
-        data: res.data,
-        message: '',
-      };
-    } catch (error) {
-      throw new Error(`获取文件下载链接失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  }
-
-  /**
-   * 重命名文件
-   * @param params 重命名参数
-   * @returns 重命名结果
-   */
-  async resetFileName(params: RenameFileParams): Promise<CommonResult<FileInfo>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const { fileId, fileName } = params;
-      const res = await this.request.request({
-        url: API_ENDPOINTS.RENAME_FILE,
-        method: 'PUT',
-        data: { fileId, fileName },
-      });
-
-      return {
-        success: true,
-        data: res.data,
-        message: '重命名成功',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '重命名失败',
-      };
-    }
-  }
-
-  /**
-   * 删除文件
-   * @param params 删除参数
-   * @returns 删除结果
-   */
-  async trashFile(params: DeleteFileParams): Promise<CommonResult<{
-    deletedCount: number;
-    failedFiles: number[];
-  }>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const { fileIDs } = params;
-      const res = await this.request.request({
-        url: API_ENDPOINTS.DELETE_FILE,
-        method: 'POST',
-        data: { fileIDs },
-      });
-
-      return {
-        success: true,
-        data: res.data,
-        message: '删除成功',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '删除失败',
-      };
-    }
-  }
-
-  /**
-   * 启用直链
-   * @param fileID 文件ID
-   * @returns 启用结果
-   */
-  async enableDirectLink(fileID: number): Promise<CommonResult<any>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const res = await this.request.request({
-        url: API_ENDPOINTS.ENABLE_DIRECT_LINK,
-        method: 'POST',
-        data: { fileID },
-      });
-
-      return {
-        success: true,
-        data: res.data,
-        message: '启用直链成功',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '启用直链失败',
-      };
-    }
-  }
-
-  /**
-   * 禁用直链
-   * @param fileID 文件ID
-   * @returns 禁用结果
-   */
-  async disableDirectLink(fileID: number): Promise<CommonResult<any>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const res = await this.request.request({
-        url: API_ENDPOINTS.DISABLE_DIRECT_LINK,
-        method: 'POST',
-        data: { fileID },
-      });
-
-      return {
-        success: true,
-        data: res.data,
-        message: '禁用直链成功',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '禁用直链失败',
-      };
-    }
-  }
-
-  /**
-   * 获取直链链接
-   * @param fileID 文件ID
-   * @returns 直链信息
-   */
-  async getFileDirectLink(fileID: number): Promise<CommonResult<{
-    directLink: string;
-    expiresAt: string;
-  }>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const res = await this.request.request({
-        url: API_ENDPOINTS.GET_DIRECT_LINK,
-        method: 'GET',
-        params: { fileID },
-      });
-  if (this.config?.debug) {
-        console.log('获取直链结果：', res);
-      }
-      return {
-        success: true,
-        data: res.data,
-        message: '获取直链成功',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '获取直链失败',
-      };
-    }
+    return response;
   }
 
   /**
    * 创建文件夹
    * @param folderName 文件夹名称
-   * @param parentID 父文件夹ID
-   * @returns 创建结果
+   * @param parentId 父文件夹 ID
    */
-  async createFolder(folderName: string, parentID: number = 0): Promise<CommonResult<FileInfo>> {
-    try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      const res = await this.request.request({
-        url: API_ENDPOINTS.FOLDER_CREATE,
-        method: 'POST',
-        data: { name: folderName, parentID: parentID },
+  async createFolder(
+    folderName: string,
+    parentID: number = 0
+  ): Promise<ApiResponse<{ fileID: number }>> {
+    const response = await this.httpClient.post<{ fileID: number }>(
+      "/upload/v1/file/mkdir",
+      { name: folderName, parentID }
+    );
+
+    if (this.config.debug) {
+      console.log("[Pan123SDK] createFolder 响应:", response);
+    }
+
+    return response;
+  }
+
+  /**
+   * 删除文件到回收站
+   * @param fileIds 文件 ID 数组，最多 100 个
+   */
+  async trashFiles(fileIds: number[]): Promise<ApiResponse<null>> {
+    if (fileIds.length > 100) {
+      throw new Error("单次最多删除 100 个文件");
+    }
+
+    const response = await this.httpClient.post<null>("/api/v1/file/trash", {
+      fileIDs: fileIds,
+    });
+
+    if (this.config.debug) {
+      console.log("[Pan123SDK] trashFiles 响应:", response);
+    }
+
+    return response;
+  }
+
+  /**
+   * 彻底删除文件（仅限回收站文件）
+   * @param fileIds 文件 ID 数组，最多 100 个
+   */
+  async deleteFiles(fileIds: number[]): Promise<ApiResponse<null>> {
+    if (fileIds.length > 100) {
+      throw new Error("单次最多删除 100 个文件");
+    }
+
+    const response = await this.httpClient.post<null>("/api/v1/file/delete", {
+      fileIDs: fileIds,
+    });
+
+    if (this.config.debug) {
+      console.log("[Pan123SDK] deleteFiles 响应:", response);
+    }
+
+    return response;
+  }
+
+  /**
+   * 重命名文件
+   * @param fileId 文件 ID
+   * @param newName 新文件名
+   */
+  async renameFile(
+    fileId: number,
+    newName: string
+  ): Promise<ApiResponse<null>> {
+    const response = await this.httpClient.put<null>("/api/v1/file/name", {
+      fileId,
+      fileName: newName,
+    });
+
+    if (this.config.debug) {
+      console.log("[Pan123SDK] renameFile 响应:", response);
+    }
+
+    return response;
+  }
+
+  /**
+   * 计算文件 MD5
+   */
+  private calculateMD5(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash("md5");
+      const stream = fs.createReadStream(filePath);
+
+      stream.on("data", (data: string | Buffer) => {
+        hash.update(data);
       });
-
-      return {
-        success: true,
-        data: res.data,
-        message: '创建文件夹成功',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '创建文件夹失败',
-      };
-    }
+      stream.on("end", () => resolve(hash.digest("hex")));
+      stream.on("error", reject);
+    });
   }
 
   /**
-   * 创建离线下载任务
-   * @param params 离线下载参数（url、fileName、dirID、callBackUrl）
-   * @returns 离线下载任务ID
+   * 上传文件（自动处理分片上传）
+   * @param filePath 本地文件路径
+   * @param parentFileId 父文件夹 ID
+   * @param filename 文件名（可选，默认使用本地文件名）
    */
-  async createOfflineDownload(
-    params: OfflineDownloadParams
-  ): Promise<CommonResult<OfflineDownloadResponse>> {
+  async uploadFile(
+    filePath: string,
+    parentFileId: number = 0,
+    filename?: string,
+    duplicate?:number,
+  ): Promise<ApiResponse<UploadResult>> {
+    // 获取文件信息
+    const stats = fs.statSync(filePath);
+    const fileSize = stats.size;
+    const fileName = filename || filePath.split(/[/\\]/).pop()!;
+
+    // 计算文件 MD5
+    if (this.config.debug) {
+      console.log("[Pan123SDK] 正在计算文件 MD5...");
+    }
+    const etag = await this.calculateMD5(filePath);
+
+    // 创建文件
+    const createResponse = await this.httpClient.post<CreateFileResponse>(
+      "/upload/v2/file/create",
+      {
+        parentFileID: parentFileId,
+        filename: fileName,
+        etag,
+        size: fileSize,
+        duplicate,
+      }
+    );
+
+    if (this.config.debug) {
+      console.log("[Pan123SDK] uploadFile - 创建文件响应:", createResponse);
+    }
+
+    // 如果创建文件失败，直接返回错误响应
+    if (createResponse.code !== 0) {
+      return createResponse as ApiResponse<UploadResult>;
+    }
+
+    // 秒传成功
+    if (createResponse.data.reuse) {
+      if (this.config.debug) {
+        console.log("[Pan123SDK] 文件秒传成功");
+      }
+      return createResponse as ApiResponse<UploadResult>;
+    }
+
+    // 分片上传
+    const { preuploadID, sliceSize, servers } = createResponse.data;
+    if (!preuploadID || !sliceSize || !servers || servers.length === 0) {
+      // 返回一个错误响应
+      return {
+        code: -1,
+        message: "创建文件响应数据不完整",
+        data: createResponse.data,
+      } as ApiResponse<UploadResult>;
+    }
+
+    const uploadSlicesResult = await this.uploadSlices(
+      filePath,
+      preuploadID,
+      sliceSize,
+      servers[0]
+    );
+
+    // 如果分片上传失败，返回错误响应
+    if (!uploadSlicesResult.success) {
+      return {
+        code: -1,
+        message: uploadSlicesResult.error || "分片上传失败",
+        data: null as any,
+      } as ApiResponse<UploadResult>;
+    }
+
+    // 上传完毕
+    const completeResponse = await this.completeUpload(preuploadID);
+
+    if (this.config.debug) {
+      console.log("[Pan123SDK] uploadFile - 上传完毕响应:", completeResponse);
+    }
+
+    return completeResponse;
+  }
+
+  /**
+   * 上传分片
+   */
+  private async uploadSlices(
+    filePath: string,
+    preuploadID: string,
+    sliceSize: number,
+    uploadServer: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
-      // 确保令牌已就绪
-      await this.ensureToken();
-      // 委托给文件服务
-      const result = await this.file.createOfflineDownload(params);
-      return result;
-    } catch (error) {
+      const fileSize = fs.statSync(filePath).size;
+      const totalSlices = Math.ceil(fileSize / sliceSize);
+
+      if (this.config.debug) {
+        console.log(`[Pan123SDK] 开始分片上传，共 ${totalSlices} 个分片`);
+      }
+
+      const uploadClient = this.httpClient.createUploadClient(uploadServer);
+
+      for (let sliceNo = 1; sliceNo <= totalSlices; sliceNo++) {
+        const start = (sliceNo - 1) * sliceSize;
+        const end = Math.min(start + sliceSize, fileSize);
+        const sliceBuffer = Buffer.alloc(end - start);
+
+        // 读取分片数据
+        let fd: number | undefined;
+        try {
+          fd = fs.openSync(filePath, "r");
+          fs.readSync(fd, sliceBuffer, 0, sliceBuffer.length, start);
+        } catch (error: any) {
+          return {
+            success: false,
+            error: `读取文件分片 ${sliceNo} 失败: ${error.message}`,
+          };
+        } finally {
+          if (fd !== undefined) {
+            try {
+              fs.closeSync(fd);
+            } catch (error) {
+              // 忽略关闭文件时的错误
+            }
+          }
+        }
+
+        // 计算分片 MD5
+        const sliceMD5 = crypto
+          .createHash("md5")
+          .update(sliceBuffer)
+          .digest("hex");
+
+        // 上传分片
+        const FormData = await import("form-data");
+        const formData = new FormData.default();
+        formData.append("preuploadID", preuploadID);
+        formData.append("sliceNo", sliceNo.toString());
+        formData.append("sliceMD5", sliceMD5);
+        formData.append("slice", sliceBuffer, { filename: "slice" });
+
+        const response = await uploadClient.post(
+          "/upload/v2/file/slice",
+          formData,
+          {
+            headers: formData.getHeaders(),
+          }
+        );
+
+        if (response.data.code !== 0) {
+          return {
+            success: false,
+            error: `上传分片 ${sliceNo} 失败: ${response.data.message}`,
+          };
+        }
+
+        if (this.config.debug) {
+          console.log(`[Pan123SDK] 分片 ${sliceNo}/${totalSlices} 上传成功`);
+        }
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      // 捕获文件系统错误（如文件不存在）
       return {
         success: false,
-        data: null,
-        message: error instanceof Error ? error.message : '创建离线下载任务失败',
+        error: `分片上传失败: ${error.message}`,
       };
     }
   }
 
   /**
-   * 获取当前配置
-   * @returns 当前配置
+   * 完成上传
    */
-  getConfig(): Pan123Config {
-    return { ...this.config };
-  }
+  private async completeUpload(
+    preuploadID: string
+  ): Promise<ApiResponse<UploadCompleteResponse>> {
+    let retries = 0;
+    const maxRetries = 30;
 
-  /**
-   * 获取当前令牌缓存
-   * @returns 令牌缓存
-   */
-  getTokenCache(): TokenCache {
-    return { ...this.tokenCache };
-  }
+    while (retries < maxRetries) {
+      const response = await this.httpClient.post<UploadCompleteResponse>(
+        "/upload/v2/file/upload_complete",
+        { preuploadID }
+      );
 
-  /**
-   * 设置访问令牌
-   * @param token 访问令牌
-   */
-  setAccessToken(token: string): void {
-    this.tokenCache.accessToken = token;
-    this.request.setAccessToken(token);
+      // 直接返回响应，无论成功或失败
+      if (response.code !== 0) {
+        return response;
+      }
+
+      // 如果上传已完成，返回响应
+      if (response.data.completed) {
+        if (this.config.debug) {
+          console.log("[Pan123SDK] 文件上传完成");
+        }
+        return response;
+      }
+
+      // 等待 1 秒后重试
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      retries++;
+    }
+
+    // 轮询超时，返回错误响应
+    return {
+      code: -1,
+      message: "上传完毕轮询超时",
+      data: {} as UploadCompleteResponse,
+    };
   }
 }
 
-// 导出类型定义
-export type {
-  Pan123Config,
-  TokenCache,
-  UploadOptions,
-  UploadResult,
-  FileListParams,
-  FileInfo,
-  ZipFileParams,
-  DirectLinkParams,
-  RenameFileParams,
-  DeleteFileParams,
-  CommonResult,
-  ApiResponse,
-  OfflineDownloadParams,
-  OfflineDownloadResponse,
-};
+/**
+ * 检查响应是否成功
+ * @param response API 响应对象
+ * @returns 当 code 等于 0 时返回 true，否则返回 false
+ */
+export function isSuccess<T>(response: ApiResponse<T>): boolean {
+  return response.code === 0;
+}
+
+/**
+ * 提取响应数据（仅在成功时）
+ * @param response API 响应对象
+ * @returns 成功时返回数据，失败时返回 null
+ */
+export function extractData<T>(response: ApiResponse<T>): T | null {
+  return isSuccess(response) ? response.data : null;
+}
+
+export default Pan123SDK;
+export * from "./types";
