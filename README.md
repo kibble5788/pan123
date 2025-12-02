@@ -394,75 +394,7 @@ async function robustUpload(sdk, filePath, parentId) {
 }
 ```
 
-## 从 1.x 迁移到 2.0
-
-2.0 版本引入了破坏性变更，所有方法现在返回完整的 `ApiResponse` 结构。
-
-### 主要变更
-
-1. **所有方法返回 ApiResponse**
-
-```javascript
-// 1.x
-const fileList = await sdk.getFileList(0, 20);
-console.log(fileList.fileList);
-
-// 2.0
-const response = await sdk.getFileList(0, 20);
-if (isSuccess(response)) {
-  console.log(response.data.fileList);
-}
-```
-
-2. **错误不再抛出异常**
-
-```javascript
-// 1.x
-try {
-  const fileList = await sdk.getFileList(0, 20);
-} catch (error) {
-  console.error('API 错误:', error.message);
-}
-
-// 2.0
-const response = await sdk.getFileList(0, 20);
-if (response.code !== 0) {
-  console.error('API 错误:', response.message);
-}
-```
-
-3. **uploadFile 返回完整响应**
-
-```javascript
-// 1.x
-const fileId = await sdk.uploadFile('./file.txt');
-console.log('文件 ID:', fileId);
-
-// 2.0
-const response = await sdk.uploadFile('./file.txt');
-if (isSuccess(response)) {
-  console.log('文件 ID:', response.data.fileID);
-}
-```
-
-### 迁移建议
-
-使用 `isSuccess` 和 `extractData` 辅助函数可以简化迁移：
-
-```javascript
-import { isSuccess, extractData } from '@ked3/pan123-sdk';
-
-const response = await sdk.getFileList(0, 20);
-const data = extractData(response);
-if (data) {
-  // 使用数据
-  console.log(data.fileList);
-} else {
-  // 处理错误
-  console.error(response.message);
-}
-```
-
+ 
 ## 注意事项
 
 1. **令牌管理**：SDK 会自动管理令牌，在令牌过期前 5 分钟自动刷新，无需手动处理
