@@ -1,6 +1,6 @@
 {
   "name": "@ked3/pan123-sdk",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "123云盘开放平台 SDK，统一返回官方 API 原始响应结构，支持文件上传、下载、管理等功能",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -15,7 +15,6 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -24,18 +23,23 @@
     "file-upload",
     "sdk"
   ],
-  "author": "",
-  "license": "MIT",
+  "homepage": "https://github.com/kibble5788/pan123#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kibble5788/pan123.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kibble5788/pan123/issues"
+  },
+  "author": "kibble5788@gmail.com",
   "devDependencies": {
- 
     "@types/node": "^20.0.0",
-    
-     
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {
     "axios": "^1.6.0",
     "form-data": "^4.0.0"
-  }
+  },
+  "license": "MIT"
 }
